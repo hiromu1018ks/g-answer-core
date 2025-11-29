@@ -4,6 +4,7 @@ import { saveDocument } from '../utils/textProcessor';
 import * as pdfjsLib from 'pdfjs-dist';
 import mammoth from 'mammoth';
 import { Upload, FileText, Trash2 } from 'lucide-react';
+import toast from 'react-hot-toast';
 
 // Set PDF worker
 import pdfWorker from 'pdfjs-dist/build/pdf.worker.min?url';
@@ -63,10 +64,10 @@ const KnowledgePane = ({ onSelectDocument }) => {
 
             await saveDocument(supabase, file, text, user.id);
             await fetchDocuments();
-            alert('Document uploaded successfully!');
+            toast.success('資料をインポートしました');
         } catch (error) {
             console.error('Error uploading document:', error);
-            alert('Error uploading document: ' + error.message);
+            toast.error('インポートに失敗しました: ' + error.message);
         } finally {
             setUploading(false);
         }

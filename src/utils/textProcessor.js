@@ -32,7 +32,9 @@ export const saveDocument = async (supabase, file, text, userId) => {
     // 3. Python Backendを呼び出し
     console.log('Sending chunks to Python Backend:', chunks.length);
 
-    const response = await fetch('http://localhost:8000/embed_document', {
+    const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
+
+    const response = await fetch(`${API_BASE_URL}/embed_document`, {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json',

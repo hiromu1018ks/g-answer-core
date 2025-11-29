@@ -1,6 +1,8 @@
 import React, { useState } from 'react';
 import { supabase } from '../utils/supabaseClient';
 import { Send, Save } from 'lucide-react';
+import { generateAnswer } from '../utils/api';
+import toast from 'react-hot-toast';
 
 const WorkspacePane = ({ onReferencesUpdate }) => {
     const [question, setQuestion] = useState('');
@@ -16,35 +18,22 @@ const WorkspacePane = ({ onReferencesUpdate }) => {
         try {
             const { data: { session } } = await supabase.auth.getSession();
             if (!session) {
-                throw new Error("ログインしてください");
+                toast.error("ログインしてください");
+                return;
             }
 
             // Call Python Backend for RAG generation
-            const response = await fetch('http://localhost:8000/generate_answer', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({
-                    question: question,
-                    user_id: session.user.id
-                }),
-            });
-
-            if (!response.ok) {
-                const errorData = await response.json();
-                throw new Error(errorData.detail || 'Failed to generate answer');
-            }
-
-            const data = await response.json();
+            const data = await generateAnswer(question, session.user.id);
 
             setAnswer(data.answer);
             if (data.references) {
                 onReferencesUpdate(data.references);
             }
+            toast.success("回答を作成しました");
         } catch (error) {
             console.error('Error generating answer:', error);
             setAnswer('Error generating answer: ' + error.message);
+            toast.error("回答の作成に失敗しました: " + error.message);
         } finally {
             setLoading(false);
         }
@@ -100,7 +89,7 @@ const WorkspacePane = ({ onReferencesUpdate }) => {
 
                 <div className="prose prose-slate max-w-none">
                     {answer ? (
-                        <div className="whitespace-pre-wrap leading-relaxed text-slate-800 text-lg">
+                        <div className="whitespace-pre-wrap leading-relaxed text-slate-800 text-lg break-words">
                             {answer}
                         </div>
                     ) : (
