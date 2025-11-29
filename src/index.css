@@ -1,0 +1,10 @@
+@import "tailwindcss";
+
+/* Custom Styles if needed */
+@theme {
+  --font-sans: 'Noto Sans JP', sans-serif;
+}
+
+body {
+  @apply bg-slate-50 text-slate-800 font-sans;
+}
