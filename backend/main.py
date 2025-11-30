@@ -37,15 +37,17 @@ if GEMINI_API_KEY:
 # Supabase Client
 # Use Service Role Key to bypass RLS for backend operations
 SUPABASE_URL = os.environ.get("SUPABASE_URL")
-SUPABASE_KEY = os.environ.get("SUPABASE_SERVICE_ROLE_KEY") or os.environ.get("SUPABASE_ANON_KEY")
+SUPABASE_SERVICE_ROLE_KEY = os.environ.get("SUPABASE_SERVICE_ROLE_KEY")
 
-if not SUPABASE_URL or not SUPABASE_KEY:
-    print("Warning: SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY not set in environment.")
+if not SUPABASE_URL:
+    print("Error: SUPABASE_URL not set in environment.")
+if not SUPABASE_SERVICE_ROLE_KEY:
+    print("Error: SUPABASE_SERVICE_ROLE_KEY not set in environment. RLS bypass will fail.")
 
 def get_supabase() -> Client:
-    if not SUPABASE_URL or not SUPABASE_KEY:
-        raise HTTPException(status_code=500, detail="Supabase configuration missing on server")
-    return create_client(SUPABASE_URL, SUPABASE_KEY)
+    if not SUPABASE_URL or not SUPABASE_SERVICE_ROLE_KEY:
+        raise HTTPException(status_code=500, detail="Supabase configuration (Service Role Key) missing on server")
+    return create_client(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY)
 
 class Chunk(BaseModel):
     content: str
