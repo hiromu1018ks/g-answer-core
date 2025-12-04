@@ -3,20 +3,24 @@ import { supabase } from '../utils/supabaseClient';
 import { saveDocument } from '../utils/textProcessor';
 import * as pdfjsLib from 'pdfjs-dist';
 import mammoth from 'mammoth';
-import { Upload, FileText, Trash2 } from 'lucide-react';
+import { Upload, FileText, Search, History, Trash2 } from 'lucide-react';
 import toast from 'react-hot-toast';
+import DraftList from './DraftList';
 
 // Set PDF worker
 import pdfWorker from 'pdfjs-dist/build/pdf.worker.min?url';
 pdfjsLib.GlobalWorkerOptions.workerSrc = pdfWorker;
 
-const KnowledgePane = ({ onSelectDocument }) => {
+const KnowledgePane = ({ onSelectDocument, onSelectDraft }) => {
     const [documents, setDocuments] = useState([]);
     const [uploading, setUploading] = useState(false);
+    const [activeTab, setActiveTab] = useState('documents'); // 'documents' or 'drafts'
 
     useEffect(() => {
-        fetchDocuments();
-    }, []);
+        if (activeTab === 'documents') {
+            fetchDocuments();
+        }
+    }, [activeTab]);
 
     const fetchDocuments = async () => {
         const { data, error } = await supabase
@@ -87,55 +91,88 @@ const KnowledgePane = ({ onSelectDocument }) => {
                 ナレッジ・インポート
             </h2>
 
-            <div className="mb-8">
-                <h3 className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-3">資料インポート</h3>
-                <label className="border-2 border-dashed border-slate-300 rounded-xl p-8 flex flex-col items-center justify-center cursor-pointer hover:bg-indigo-50 hover:border-indigo-300 transition-all group">
-                    <input
-                        type="file"
-                        accept=".pdf,.docx,.txt"
-                        onChange={handleFileUpload}
-                        disabled={uploading}
-                        className="hidden"
-                    />
-                    <div className="bg-white p-3 rounded-full shadow-sm mb-3 group-hover:scale-110 transition-transform">
-                        <Upload className="w-6 h-6 text-indigo-600" />
-                    </div>
-                    <span className="text-sm font-medium text-slate-700 mb-1">
-                        {uploading ? '処理中...' : 'ここにファイルをドロップ'}
-                    </span>
-                    <span className="text-xs text-slate-400">PDF, Word, Text</span>
-                </label>
+            {/* Tab Switcher */}
+            <div className="flex p-1 bg-slate-200 rounded-lg mb-6">
+                <button
+                    onClick={() => setActiveTab('documents')}
+                    className={`flex-1 py-1.5 px-3 rounded-md text-sm font-medium transition-all flex items-center justify-center gap-2 ${activeTab === 'documents'
+                            ? 'bg-white text-indigo-600 shadow-sm'
+                            : 'text-slate-500 hover:text-slate-700'
+                        }`}
+                >
+                    <Search size={16} />
+                    資料検索
+                </button>
+                <button
+                    onClick={() => setActiveTab('drafts')}
+                    className={`flex-1 py-1.5 px-3 rounded-md text-sm font-medium transition-all flex items-center justify-center gap-2 ${activeTab === 'drafts'
+                            ? 'bg-white text-indigo-600 shadow-sm'
+                            : 'text-slate-500 hover:text-slate-700'
+                        }`}
+                >
+                    <History size={16} />
+                    履歴
+                </button>
             </div>
 
-            <div className="flex-1 overflow-y-auto">
-                <h3 className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-3">過去資料・ナレッジ</h3>
-                <div className="space-y-3">
-                    {documents.map((doc) => (
-                        <div key={doc.id} className="bg-white p-3 rounded-lg shadow-sm border border-slate-100 hover:shadow-md transition-shadow flex items-start justify-between group">
-                            <div
-                                onClick={() => onSelectDocument(doc)}
-                                className="cursor-pointer flex-1 flex items-start gap-3 min-w-0"
-                            >
-                                <div className="bg-indigo-50 p-2 rounded text-indigo-600 shrink-0">
-                                    <FileText size={16} />
-                                </div>
-                                <div className="min-w-0">
-                                    <p className="text-sm font-medium text-slate-800 truncate">{doc.title}</p>
-                                    <p className="text-xs text-slate-400 mt-0.5">
-                                        {new Date(doc.created_at).toLocaleDateString('ja-JP')}
-                                    </p>
-                                </div>
+            {activeTab === 'documents' ? (
+                <>
+                    <div className="mb-8">
+                        <h3 className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-3">資料インポート</h3>
+                        <label className="border-2 border-dashed border-slate-300 rounded-xl p-8 flex flex-col items-center justify-center cursor-pointer hover:bg-indigo-50 hover:border-indigo-300 transition-all group">
+                            <input
+                                type="file"
+                                accept=".pdf,.docx,.txt"
+                                onChange={handleFileUpload}
+                                disabled={uploading}
+                                className="hidden"
+                            />
+                            <div className="bg-white p-3 rounded-full shadow-sm mb-3 group-hover:scale-110 transition-transform">
+                                <Upload className="w-6 h-6 text-indigo-600" />
                             </div>
-                            <button
-                                onClick={() => handleDelete(doc.id)}
-                                className="text-slate-300 hover:text-red-500 p-1 rounded hover:bg-red-50 transition-colors opacity-0 group-hover:opacity-100"
-                            >
-                                <Trash2 size={14} />
-                            </button>
+                            <span className="text-sm font-medium text-slate-700 mb-1">
+                                {uploading ? '処理中...' : 'ここにファイルをドロップ'}
+                            </span>
+                            <span className="text-xs text-slate-400">PDF, Word, Text</span>
+                        </label>
+                    </div>
+
+                    <div className="flex-1 overflow-y-auto">
+                        <h3 className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-3">過去資料・ナレッジ</h3>
+                        <div className="space-y-3">
+                            {documents.map((doc) => (
+                                <div key={doc.id} className="bg-white p-3 rounded-lg shadow-sm border border-slate-100 hover:shadow-md transition-shadow flex items-start justify-between group">
+                                    <div
+                                        onClick={() => onSelectDocument(doc)}
+                                        className="cursor-pointer flex-1 flex items-start gap-3 min-w-0"
+                                    >
+                                        <div className="bg-indigo-50 p-2 rounded text-indigo-600 shrink-0">
+                                            <FileText size={16} />
+                                        </div>
+                                        <div className="min-w-0">
+                                            <p className="text-sm font-medium text-slate-800 truncate">{doc.title}</p>
+                                            <p className="text-xs text-slate-400 mt-0.5">
+                                                {new Date(doc.created_at).toLocaleDateString('ja-JP')}
+                                            </p>
+                                        </div>
+                                    </div>
+                                    <button
+                                        onClick={() => handleDelete(doc.id)}
+                                        className="text-slate-300 hover:text-red-500 p-1 rounded hover:bg-red-50 transition-colors opacity-0 group-hover:opacity-100"
+                                    >
+                                        <Trash2 size={14} />
+                                    </button>
+                                </div>
+                            ))}
                         </div>
-                    ))}
+                    </div>
+                </>
+            ) : (
+                <div className="flex-1 overflow-y-auto">
+                    <h3 className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-3">下書き一覧</h3>
+                    <DraftList onSelectDraft={onSelectDraft} />
                 </div>
-            </div>
+            )}
         </div>
     );
 };

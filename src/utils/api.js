@@ -45,3 +45,80 @@ export const generateAnswer = async (question, userId) => {
 
     return await response.json();
 };
+
+/**
+ * Saves a draft to the database.
+ * @param {string} userId - The user ID.
+ * @param {string} question - The question text.
+ * @param {string} answerBody - The answer text (HTML).
+ * @param {Array} references - The referenced documents.
+ * @param {string|null} draftId - The existing draft ID, if any.
+ * @returns {Promise<Object>} - The saved draft data.
+ */
+export const saveDraft = async (userId, question, answerBody, references, draftId = null) => {
+    // Extract IDs from references
+    const referencedSectionIds = references.map(ref => ref.id);
+
+    const payload = {
+        user_id: userId,
+        question: question,
+        answer_body: answerBody,
+        referenced_section_ids: referencedSectionIds,
+        status: 'draft',
+        updated_at: new Date().toISOString()
+    };
+
+    if (draftId) {
+        payload.id = draftId;
+    }
+
+    const { data, error } = await import('./supabaseClient').then(m => m.supabase
+        .from('drafts')
+        .upsert(payload)
+        .select()
+        .single()
+    );
+
+    if (error) {
+        throw new Error(error.message);
+    }
+
+    return data;
+};
+
+/**
+ * Retrieves drafts for a user.
+ * @param {string} userId - The user ID.
+ * @returns {Promise<Array>} - The list of drafts.
+ */
+export const getDrafts = async (userId) => {
+    const { data, error } = await import('./supabaseClient').then(m => m.supabase
+        .from('drafts')
+        .select('*')
+        .eq('user_id', userId)
+        .order('updated_at', { ascending: false })
+    );
+
+    if (error) {
+        throw new Error(error.message);
+    }
+
+    return data;
+};
+
+/**
+ * Deletes a draft.
+ * @param {string} draftId - The draft ID.
+ * @returns {Promise<void>}
+ */
+export const deleteDraft = async (draftId) => {
+    const { error } = await import('./supabaseClient').then(m => m.supabase
+        .from('drafts')
+        .delete()
+        .eq('id', draftId)
+    );
+
+    if (error) {
+        throw new Error(error.message);
+    }
+};

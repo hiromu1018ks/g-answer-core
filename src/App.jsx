@@ -10,6 +10,8 @@ function App() {
   const [session, setSession] = useState(null);
   const [references, setReferences] = useState([]);
 
+  const [selectedDraft, setSelectedDraft] = useState(null);
+
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
       setSession(session);
@@ -32,14 +34,30 @@ function App() {
     setReferences(refs);
   };
 
+  const handleSelectDraft = (draft) => {
+    setSelectedDraft(draft);
+    // Also update references if the draft has them
+    // Note: The draft object from DB has referenced_section_ids.
+    // We might need to fetch the actual sections if we want to show them in PreviewPane immediately.
+    // For now, let's just pass the draft to WorkspacePane to load the text.
+    // If we want to show references in PreviewPane, we'd need to fetch them by ID.
+    // Let's assume WorkspacePane handles the text loading.
+  };
+
   if (!session) {
     return <Auth />;
   }
 
   return (
     <Layout>
-      <KnowledgePane onSelectDocument={handleSelectDocument} />
-      <WorkspacePane onReferencesUpdate={handleReferencesUpdate} />
+      <KnowledgePane
+        onSelectDocument={handleSelectDocument}
+        onSelectDraft={handleSelectDraft}
+      />
+      <WorkspacePane
+        onReferencesUpdate={handleReferencesUpdate}
+        initialDraft={selectedDraft}
+      />
       <PreviewPane references={references} />
     </Layout>
   );

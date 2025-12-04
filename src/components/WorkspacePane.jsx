@@ -1,19 +1,38 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { supabase } from '../utils/supabaseClient';
 import { Send, Save } from 'lucide-react';
-import { generateAnswer } from '../utils/api';
+import { generateAnswer, saveDraft } from '../utils/api';
 import toast from 'react-hot-toast';
+import RichTextEditor from './RichTextEditor';
 
-const WorkspacePane = ({ onReferencesUpdate }) => {
+const WorkspacePane = ({ onReferencesUpdate, initialDraft }) => {
     const [question, setQuestion] = useState('');
     const [answer, setAnswer] = useState('');
     const [loading, setLoading] = useState(false);
+    const [currentReferences, setCurrentReferences] = useState([]);
+    const [draftId, setDraftId] = useState(null);
+
+    useEffect(() => {
+        if (initialDraft) {
+            setQuestion(initialDraft.question || '');
+            setAnswer(initialDraft.answer_body || '');
+            setDraftId(initialDraft.id);
+            // Note: We are not restoring references here because we only have IDs.
+            // If we want to restore references, we need to fetch them.
+            // For now, we clear references to avoid mismatch.
+            setCurrentReferences([]);
+            onReferencesUpdate([]);
+            toast.success('下書きを読み込みました');
+        }
+    }, [initialDraft]);
 
     const handleGenerate = async () => {
         if (!question.trim()) return;
         setLoading(true);
         setAnswer('');
         onReferencesUpdate([]);
+        setCurrentReferences([]);
+        setDraftId(null); // Reset draft ID on new generation
 
         try {
             const { data: { session } } = await supabase.auth.getSession();
@@ -25,14 +44,22 @@ const WorkspacePane = ({ onReferencesUpdate }) => {
             // Call Python Backend for RAG generation
             const data = await generateAnswer(question, session.user.id);
 
-            setAnswer(data.answer);
+            // Convert plain text to HTML for Tiptap
+            // Replace newlines with paragraph tags or br tags
+            const formattedAnswer = data.answer
+                .split('\n')
+                .map(line => line.trim() ? `<p>${line}</p>` : '<p><br></p>')
+                .join('');
+
+            setAnswer(formattedAnswer);
             if (data.references) {
                 onReferencesUpdate(data.references);
+                setCurrentReferences(data.references);
             }
             toast.success("回答を作成しました");
         } catch (error) {
             console.error('Error generating answer:', error);
-            setAnswer('Error generating answer: ' + error.message);
+            setAnswer('<p>Error generating answer: ' + error.message + '</p>');
             toast.error("回答の作成に失敗しました: " + error.message);
         } finally {
             setLoading(false);
@@ -41,9 +68,21 @@ const WorkspacePane = ({ onReferencesUpdate }) => {
 
     const handleSaveDraft = async () => {
         if (!answer) return;
-        // Implementation for saving draft to 'drafts' table
-        // For now, just a placeholder
-        alert('Save draft functionality to be implemented.');
+
+        try {
+            const { data: { session } } = await supabase.auth.getSession();
+            if (!session) {
+                toast.error("ログインしてください");
+                return;
+            }
+
+            const savedData = await saveDraft(session.user.id, question, answer, currentReferences, draftId);
+            setDraftId(savedData.id); // Update draft ID with the saved one
+            toast.success("下書きを保存しました");
+        } catch (error) {
+            console.error('Error saving draft:', error);
+            toast.error("保存に失敗しました: " + error.message);
+        }
     };
 
     return (
@@ -73,7 +112,7 @@ const WorkspacePane = ({ onReferencesUpdate }) => {
                 </div>
             </div>
 
-            <div className="w-full max-w-3xl flex-1 min-h-[600px] bg-white rounded-xl shadow-md p-10 relative mb-8">
+            <div className="w-full max-w-3xl bg-white rounded-xl shadow-md p-10 relative mb-8">
                 <div className="absolute top-0 right-0 p-4">
                     <button
                         onClick={handleSaveDraft}
@@ -87,19 +126,11 @@ const WorkspacePane = ({ onReferencesUpdate }) => {
 
                 <h3 className="text-sm font-semibold text-slate-400 uppercase tracking-wider mb-6 border-b border-slate-100 pb-2">答弁書ドラフト</h3>
 
-                <div className="prose prose-slate max-w-none">
-                    {answer ? (
-                        <div className="whitespace-pre-wrap leading-relaxed text-slate-800 text-lg break-words">
-                            {answer}
-                        </div>
-                    ) : (
-                        <div className="flex flex-col items-center justify-center h-64 text-slate-300">
-                            <div className="bg-slate-50 p-4 rounded-full mb-4">
-                                <Send size={32} />
-                            </div>
-                            <p>質問を入力して「AIで起案する」を押してください</p>
-                        </div>
-                    )}
+                <div className="w-full">
+                    <RichTextEditor
+                        content={answer}
+                        onChange={setAnswer}
+                    />
                 </div>
             </div>
         </div>
